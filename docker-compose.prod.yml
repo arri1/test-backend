@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: auth-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - auth-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js приложение
+  app:
+    build: .
+    container_name: auth-backend-prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth-prod-network
+    volumes:
+      - ./logs:/app/logs
+
+  # Prisma Studio (опционально для продакшена)
+  prisma-studio:
+    build: .
+    container_name: auth-prisma-studio-prod
+    command: npx prisma studio --hostname 0.0.0.0 --port 5555
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth-prod-network
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
+    driver: local
+
+networks:
+  auth-prod-network:
+    driver: bridge
