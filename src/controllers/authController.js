@@ -256,10 +256,75 @@ const getProfile = async (req, res) => {
   }
 };
 
+const getUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, role, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Строим условия для фильтрации
+    const where = {};
+    
+    if (role) {
+      where.role = role;
+    }
+    
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Получаем пользователей с пагинацией
+    const [users, totalCount] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: parseInt(offset),
+        take: parseInt(limit)
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount,
+          limit: parseInt(limit),
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   refresh,
   logout,
-  getProfile
+  getProfile,
+  getUsers
 };

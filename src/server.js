@@ -7,6 +7,9 @@ const routes = require('./routes');
 
 const app = express();
 
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
+
 // Middleware для безопасности
 app.use(helmet());
 
