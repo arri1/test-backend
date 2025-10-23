@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных для разработки
+  postgres:
+    image: postgres:15-alpine
+    container_name: auth-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - auth-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis для кеширования (опционально)
+  redis:
+    image: redis:7-alpine
+    container_name: auth-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - auth-dev-network
+
+  # Prisma Studio для разработки
+  prisma-studio:
+    build: .
+    container_name: auth-prisma-studio-dev
+    command: npx prisma studio --hostname 0.0.0.0 --port 5555
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth-dev-network
+    volumes:
+      - ./prisma:/app/prisma
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  auth-dev-network:
+    driver: bridge
