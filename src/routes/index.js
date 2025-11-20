@@ -5,7 +5,20 @@ const authRoutes = require('./auth');
 // Основные маршруты
 router.use('/auth', authRoutes);
 
-// Тестовый маршрут
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Проверка состояния сервера
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Сервер работает
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ */
 router.get('/health', (req, res) => {
   res.json({
     success: true,

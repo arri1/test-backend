@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 const { PORT, CORS_ORIGIN } = require('./config/env');
 const routes = require('./routes');
 
@@ -11,7 +13,9 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware для безопасности
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false // Отключаем для Swagger UI
+}));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -34,6 +38,12 @@ app.use(cors({
 // Парсинг JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Swagger документация
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Auth Backend API Documentation'
+}));
 
 // Маршруты
 app.use('/api', routes);
@@ -62,6 +72,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
 });
 
 module.exports = app;
